@@ -1,0 +1,135 @@
+<mjml>
+    <mj-head>
+        <mj-title>{{ confirmation.subject }}</mj-title>
+        <mj-preview>{{ confirmation.message }}</mj-preview>
+        <mj-attributes>
+            <mj-all font-family="Arial, Helvetica, sans-serif" />
+            <mj-text color="#40534b" font-size="15px" line-height="24px" />
+            <mj-button background-color="#275b4e" color="#ffffff" border-radius="5px" font-size="14px" font-weight="700" inner-padding="13px 24px" />
+        </mj-attributes>
+        <mj-style inline="inline">
+            .summary-table td { border-bottom: 1px solid #e3e9e6; }
+            .summary-table tr:last-child td { border-bottom: 0; }
+            .total-row td { color: #17221e; font-weight: 700; }
+        </mj-style>
+    </mj-head>
+
+    <mj-body background-color="#f3f6f4" width="640px">
+        <mj-section background-color="#173d34" padding="24px 28px">
+            <mj-column>
+                <mj-text color="#ffffff" font-size="24px" font-weight="700" padding="0">The Makers Bazar</mj-text>
+                <mj-text color="#cfe0d9" font-size="12px" font-weight="700" padding="6px 0 0">ORDER CONFIRMATION</mj-text>
+            </mj-column>
+        </mj-section>
+
+        <mj-section background-color="#ffffff" padding="34px 28px 22px">
+            <mj-column>
+                <mj-text color="#b94f37" font-size="12px" font-weight="700" padding="0 0 10px">{{ confirmation.label }}</mj-text>
+                <mj-text color="#17221e" font-size="27px" font-weight="700" line-height="34px" padding="0 0 12px">{{ confirmation.title }}</mj-text>
+                <mj-text padding="0 0 8px">Hello {{ order.customer.firstName }},</mj-text>
+                <mj-text padding="0">{{ confirmation.message }}</mj-text>
+            </mj-column>
+        </mj-section>
+
+        <mj-section background-color="#edf5f1" padding="20px 28px">
+            <mj-column width="34%">
+                <mj-text color="#687770" font-size="11px" font-weight="700" padding="0 0 5px">ORDER CODE</mj-text>
+                <mj-text color="#17221e" font-size="15px" font-weight="700" padding="0">{{ order.code }}</mj-text>
+            </mj-column>
+            <mj-column width="33%">
+                <mj-text color="#687770" font-size="11px" font-weight="700" padding="0 0 5px">ORDER DATE</mj-text>
+                <mj-text color="#17221e" font-size="15px" font-weight="700" padding="0">{{ formatDate order.orderPlacedAt }}</mj-text>
+            </mj-column>
+            <mj-column width="33%">
+                <mj-text color="#687770" font-size="11px" font-weight="700" padding="0 0 5px">TOTAL</mj-text>
+                <mj-text color="#17221e" font-size="15px" font-weight="700" padding="0">{{ formatMoney order.totalWithTax order.currencyCode 'en' }}</mj-text>
+            </mj-column>
+        </mj-section>
+
+        <mj-section background-color="#ffffff" padding="28px 28px 8px">
+            <mj-column>
+                <mj-text color="#17221e" font-size="19px" font-weight="700" padding="0 0 8px">{{ confirmation.deliveryTitle }}</mj-text>
+                <mj-text padding="0">{{ confirmation.deliveryMessage }}</mj-text>
+            </mj-column>
+        </mj-section>
+
+        <mj-section background-color="#ffffff" padding="8px 28px 24px">
+            {{#each confirmation.steps}}
+                <mj-column width="33.333%" padding="5px">
+                    <mj-text background-color="#f7faf8" color="#263830" font-size="13px" font-weight="700" padding="13px 12px 4px">{{ title }}</mj-text>
+                    <mj-text background-color="#f7faf8" color="#687770" font-size="12px" line-height="18px" padding="2px 12px 13px">{{ description }}</mj-text>
+                </mj-column>
+            {{/each}}
+        </mj-section>
+
+        {{#if confirmation.showShipping}}
+            <mj-section background-color="#ffffff" padding="0 28px 26px">
+                <mj-column>
+                    <mj-divider border-color="#e3e9e6" border-width="1px" padding="0 0 24px" />
+                    <mj-text color="#17221e" font-size="17px" font-weight="700" padding="0 0 8px">Shipping to</mj-text>
+                    {{#with order.shippingAddress}}
+                        <mj-text padding="0">
+                            <strong>{{ fullName }}</strong><br />
+                            {{#if company}}{{ company }}<br />{{/if}}
+                            {{#if streetLine1}}{{ streetLine1 }}<br />{{/if}}
+                            {{#if streetLine2}}{{ streetLine2 }}<br />{{/if}}
+                            {{#if city}}{{ city }}{{#if province}}, {{ province }}{{/if}}{{#if postalCode}} {{ postalCode }}{{/if}}<br />{{/if}}
+                            {{#if country}}{{ country }}<br />{{/if}}
+                            {{#if phoneNumber}}{{ phoneNumber}}{{/if}}
+                        </mj-text>
+                    {{/with}}
+                </mj-column>
+            </mj-section>
+        {{/if}}
+
+        <mj-section background-color="#ffffff" padding="0 28px 26px">
+            <mj-column>
+                <mj-divider border-color="#e3e9e6" border-width="1px" padding="0 0 24px" />
+                <mj-text color="#17221e" font-size="19px" font-weight="700" padding="0 0 12px">Order summary</mj-text>
+                <mj-table css-class="summary-table" cellpadding="10px 0">
+                    {{#each order.lines}}
+                        <tr>
+                            <td style="color:#263830;font-weight:700;">{{ quantity }} x {{ productVariant.name }}</td>
+                            <td style="color:#52635c;text-align:right;white-space:nowrap;">{{ formatMoney discountedLinePriceWithTax ../order.currencyCode 'en' }}</td>
+                        </tr>
+                    {{/each}}
+                    {{#each order.discounts}}
+                        <tr>
+                            <td style="color:#52635c;">{{ description }}</td>
+                            <td style="color:#52635c;text-align:right;white-space:nowrap;">{{ formatMoney amount ../order.currencyCode 'en' }}</td>
+                        </tr>
+                    {{/each}}
+                    <tr>
+                        <td style="color:#52635c;">Subtotal</td>
+                        <td style="color:#52635c;text-align:right;white-space:nowrap;">{{ formatMoney order.subTotalWithTax order.currencyCode 'en' }}</td>
+                    </tr>
+                    {{#if confirmation.showShipping}}
+                        {{#each shippingLines}}
+                            <tr>
+                                <td style="color:#52635c;">Shipping ({{ shippingMethod.name }})</td>
+                                <td style="color:#52635c;text-align:right;white-space:nowrap;">{{ formatMoney priceWithTax ../order.currencyCode 'en' }}</td>
+                            </tr>
+                        {{/each}}
+                    {{/if}}
+                    <tr class="total-row">
+                        <td>Total</td>
+                        <td style="text-align:right;white-space:nowrap;">{{ formatMoney order.totalWithTax order.currencyCode 'en' }}</td>
+                    </tr>
+                </mj-table>
+            </mj-column>
+        </mj-section>
+
+        <mj-section background-color="#ffffff" padding="0 28px 34px">
+            <mj-column>
+                <mj-button href="{{ ordersUrl }}" align="left" padding="0">View my orders</mj-button>
+                <mj-text color="#7a8983" font-size="12px" padding="14px 0 0">Keep order reference <strong>{{ order.code }}</strong> for support and order tracking.</mj-text>
+            </mj-column>
+        </mj-section>
+
+        <mj-section background-color="#173d34" padding="20px 28px">
+            <mj-column>
+                <mj-text align="center" color="#dce9e4" font-size="12px" padding="0">The Makers Bazar | Trusted orders, bookings, and digital delivery</mj-text>
+            </mj-column>
+        </mj-section>
+    </mj-body>
+</mjml>

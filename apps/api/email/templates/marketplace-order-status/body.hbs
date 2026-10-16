@@ -1,0 +1,47 @@
+{{> header title="Order status update" }}
+
+<mj-section background-color="#fafafa">
+    <mj-column>
+        <mj-text color="#263730" font-size="18px">Hello {{ customerFirstName }},</mj-text>
+        <mj-text color="#52635c">
+            Your order <strong>{{ orderCode }}</strong> is now
+            <strong>{{ statusLabel }}</strong>.
+        </mj-text>
+        <mj-text color="#52635c" font-size="16px">{{ statusMessage }}</mj-text>
+        {{#if statusNote}}
+            <mj-text color="#52635c">
+                Vendor note: <strong>{{ statusNote }}</strong>
+            </mj-text>
+        {{/if}}
+        {{#if trackingCode}}
+            <mj-text color="#52635c">Tracking code: <strong>{{ trackingCode }}</strong></mj-text>
+        {{/if}}
+        <mj-divider border-color="#dce5e1" />
+        <mj-text color="#263730" font-size="16px" font-weight="bold">Order items</mj-text>
+        {{#each products}}
+            <mj-text color="#52635c" padding-top="4px" padding-bottom="4px">
+                <strong>{{ quantity }} x {{ productName }}</strong>
+                {{#if variantName}}<br />Variant: {{ variantName }}{{/if}}
+                {{#if sku}}<br />SKU: {{ sku }}{{/if}}
+            </mj-text>
+        {{/each}}
+        <mj-text color="#52635c">Vendor: <strong>{{ vendorName }}</strong></mj-text>
+        {{#if downloadReady}}
+            <mj-text color="#263730" font-size="16px" font-weight="bold">
+                Your ebook is ready to download securely.
+            </mj-text>
+            <mj-button font-family="Helvetica" background-color="#173d34" color="white" href="{{ ordersUrl }}">
+                Download your ebook
+            </mj-button>
+        {{else}}
+            <mj-button font-family="Helvetica" background-color="#173d34" color="white" href="{{ ordersUrl }}">
+                Track your order
+            </mj-button>
+        {{/if}}
+        <mj-text color="#7a8983" font-size="12px">
+            Seller order reference: {{ sellerOrderCode }}
+        </mj-text>
+    </mj-column>
+</mj-section>
+
+{{> footer }}

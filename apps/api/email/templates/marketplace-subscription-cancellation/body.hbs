@@ -1,0 +1,17 @@
+{{> header title="Subscription cancellation request" }}
+
+<mj-section background-color="#fafafa">
+    <mj-column>
+        <mj-text color="#263730" font-size="20px" font-weight="bold">A member requested cancellation</mj-text>
+        <mj-text color="#52635c">
+            {{ customerName }} asked to leave <strong>{{ productName }} - {{ className }}</strong>.
+        </mj-text>
+        {{#if reason}}<mj-text color="#52635c">Reason: {{ reason }}</mj-text>{{/if}}
+        <mj-button font-family="Helvetica" background-color="#173d34" color="white" href="{{ storefrontUrl }}/dashboard/vendor/bookings">
+            Review request
+        </mj-button>
+        <mj-text color="#7a8983" font-size="12px">The seat is held until you approve the cancellation.</mj-text>
+    </mj-column>
+</mj-section>
+
+{{> footer }}

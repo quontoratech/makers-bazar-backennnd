@@ -1,0 +1,20 @@
+{{> header title="Application update" }}
+
+<mj-section background-color="#fafafa">
+    <mj-column>
+        <mj-text color="#263730" font-size="18px">Hello {{ firstName }},</mj-text>
+        <mj-text color="#52635c">
+            Your {{ role }} application for <strong>{{ displayName }}</strong> is now
+            <strong>{{ status }}</strong>.
+        </mj-text>
+        <mj-text color="#52635c">Application reference: <strong>{{ reference }}</strong></mj-text>
+        {{#if reviewNote}}
+            <mj-text color="#52635c">Review note: {{ reviewNote }}</mj-text>
+        {{/if}}
+        <mj-button font-family="Helvetica" background-color="#173d34" color="white" href="{{ applicationStatusUrl }}">
+            Check application status
+        </mj-button>
+    </mj-column>
+</mj-section>
+
+{{> footer }}

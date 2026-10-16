@@ -1,0 +1,21 @@
+{{> header title="Class pass renewal" }}
+
+<mj-section background-color="#fafafa">
+    <mj-column>
+        <mj-text color="#263730" font-size="20px" font-weight="bold">Your class renewal is due</mj-text>
+        <mj-text color="#52635c" font-size="16px">
+            Your paid period for <strong>{{ productName }} - {{ className }}</strong> ended on {{ formatDate accessEndsAt }}.
+        </mj-text>
+        <mj-text color="#52635c">
+            Your place remains held until {{ formatDate graceEndsAt }}. Pay before that deadline to stay enrolled. No automatic charge will be made.
+        </mj-text>
+        <mj-button font-family="Helvetica" background-color="#173d34" color="white" href="{{ storefrontUrl }}/subscriptions/renew?token={{ renewalToken }}">
+            Pay subscription renewal
+        </mj-button>
+        <mj-text color="#7a8983" font-size="12px">
+            You are receiving this message because you purchased a fixed-term class subscription on The Makers Bazar.
+        </mj-text>
+    </mj-column>
+</mj-section>
+
+{{> footer }}

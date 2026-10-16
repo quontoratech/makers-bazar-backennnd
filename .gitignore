@@ -1,0 +1,22 @@
+node_modules
+.vendure
+apps/api/.vendure
+dist
+coverage
+*.tsbuildinfo
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
+
+# Runtime data and private customer/vendor files
+apps/api/assets
+apps/api/data
+apps/api/private
+apps/api/test-emails
+private
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.sqlite.before-*

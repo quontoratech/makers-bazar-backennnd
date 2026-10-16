@@ -1,0 +1,24 @@
+{{> header title="Your application is approved" }}
+
+<mj-section background-color="#fafafa">
+    <mj-column>
+        <mj-text color="#263730" font-size="18px">Hello {{ firstName }},</mj-text>
+        <mj-text color="#52635c">
+            Your {{ role }} application for <strong>{{ displayName }}</strong> has been approved and your account is ready.
+        </mj-text>
+        <mj-text color="#52635c">Login email: <strong>{{ emailAddress }}</strong></mj-text>
+        <mj-text color="#52635c">Temporary password:</mj-text>
+        <mj-text align="center" color="#173d34" font-size="22px" font-weight="700">
+            {{ temporaryPassword }}
+        </mj-text>
+        <mj-text color="#a23d32">
+            You must replace this temporary password immediately after your first login.
+        </mj-text>
+        <mj-button font-family="Helvetica" background-color="#173d34" color="white" href="{{ loginUrl }}">
+            Sign in to The Makers Bazar
+        </mj-button>
+        <mj-text color="#718079" font-size="13px">Application reference: {{ reference }}</mj-text>
+    </mj-column>
+</mj-section>
+
+{{> footer }}

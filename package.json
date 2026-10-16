@@ -1,0 +1,22 @@
+{
+  "name": "makers-bazar-backend",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "bun@1.3.14",
+  "scripts": {
+    "dev": "bun run --cwd apps/api dev",
+    "dev:worker": "bun run --cwd apps/api dev:worker",
+    "build": "bun run --cwd apps/api build",
+    "start": "bun run --cwd apps/api start",
+    "start:worker": "node apps/api/dist/worker.js",
+    "typecheck": "bun run --cwd apps/api typecheck"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "devDependencies": {
+    "@types/node": "20.19.43",
+    "typescript": "5.8.2"
+  }
+}
