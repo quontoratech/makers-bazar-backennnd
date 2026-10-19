@@ -7,6 +7,7 @@
     "dev:worker": "APP_ENV=dev ts-node -r dotenv/config ./src/worker.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node ./dist/index.js",
+    "start:all": "node ./dist/production.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "verify:catalog": "ts-node -r dotenv/config ./src/scripts/verify-dynamic-catalog.ts",
     "verify:catalog-migrations": "ts-node -r dotenv/config ./src/scripts/verify-catalog-migrations.ts",
@@ -28,7 +29,7 @@
     "verify:promotion-payments": "ts-node -r dotenv/config ./src/scripts/verify-promotion-payments.ts"
   },
   "dependencies": {
-    "@marketplace/contracts": "workspace:*",
+    "@marketplace/contracts": "0.1.0",
     "@nestjs/common": "^11.0.12",
     "@nestjs/graphql": "~13.1.0",
     "@nestjs/platform-socket.io": "11.1.28",

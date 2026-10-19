@@ -2,14 +2,18 @@
   "name": "makers-bazar-backend",
   "version": "1.0.0",
   "private": true,
-  "packageManager": "bun@1.3.14",
+  "packageManager": "npm@10.8.2",
+  "engines": {
+    "node": ">=22.12.0 <25"
+  },
   "scripts": {
-    "dev": "bun run --cwd apps/api dev",
-    "dev:worker": "bun run --cwd apps/api dev:worker",
-    "build": "bun run --cwd apps/api build",
-    "start": "bun run --cwd apps/api start",
+    "dev": "npm --workspace @marketplace/api run dev",
+    "dev:worker": "npm --workspace @marketplace/api run dev:worker",
+    "build": "npm --workspace @marketplace/api run build",
+    "start": "npm --workspace @marketplace/api run start:all",
+    "start:api": "npm --workspace @marketplace/api run start",
     "start:worker": "node apps/api/dist/worker.js",
-    "typecheck": "bun run --cwd apps/api typecheck"
+    "typecheck": "npm --workspace @marketplace/api run typecheck"
   },
   "workspaces": [
     "apps/*",

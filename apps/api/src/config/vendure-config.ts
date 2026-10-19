@@ -17,8 +17,12 @@ import { MarketplaceTemplateLoader } from '../email/marketplace-template-loader'
 import { MarketplacePlugin } from '../plugins/marketplace/marketplace.plugin';
 
 const isDevelopment = process.env.APP_ENV !== 'production';
-const webOrigin = process.env.WEB_ORIGIN ?? 'http://localhost:3001';
-const apiPort = Number(process.env.API_PORT ?? 3000);
+const webOrigins = (process.env.WEB_ORIGIN ?? 'http://localhost:3001')
+    .split(',')
+    .map(origin => origin.trim().replace(/\/+$/, ''))
+    .filter(Boolean);
+const webOrigin = webOrigins[0] ?? 'http://localhost:3001';
+const apiPort = Number(process.env.PORT ?? process.env.API_PORT ?? 3000);
 const apiPublicUrl = (process.env.API_PUBLIC_URL ?? `http://localhost:${apiPort}`).replace(/\/+$/, '');
 
 export const config: VendureConfig = {
@@ -29,12 +33,12 @@ export const config: VendureConfig = {
         adminApiDebug: isDevelopment,
         shopApiDebug: isDevelopment,
         cors: {
-            origin: [webOrigin],
+            origin: webOrigins,
             credentials: true,
         },
     },
     authOptions: {
-        requireVerification: true,
+        requireVerification: process.env.AUTH_REQUIRE_VERIFICATION !== 'false',
         tokenMethod: ['bearer', 'cookie'],
         superadminCredentials: {
             identifier: process.env.SUPERADMIN_USERNAME ?? 'superadmin',
@@ -69,7 +73,9 @@ export const config: VendureConfig = {
 };
 
 function createAssetServerPlugin() {
-    const assetUploadDir = path.join(__dirname, '../../assets');
+    const assetUploadDir = process.env.ASSET_UPLOAD_DIR
+        ? path.resolve(process.env.ASSET_UPLOAD_DIR)
+        : path.join(__dirname, '../../assets');
     const credentials = {
         cloudName: process.env.CLOUDINARY_CLOUD_NAME ?? '',
         apiKey: process.env.CLOUDINARY_API_KEY ?? '',

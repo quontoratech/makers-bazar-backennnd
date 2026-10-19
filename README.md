@@ -5,13 +5,13 @@ Vendure API, background worker, PostgreSQL migrations, marketplace plugins, Sock
 ## Requirements
 
 - Node.js 22.12 or newer
-- Bun 1.3 or newer
-- PostgreSQL for production
+- npm 10 or newer
+- PostgreSQL for multi-instance production, or persistent SQLite for a single-instance deployment
 
 ## Local setup
 
 ```bash
-bun install
+npm install
 cp .env.example apps/api/.env
 ```
 
@@ -20,8 +20,8 @@ For local SQLite development, set `APP_ENV=dev`, `DB=sqlite`, and `DB_PATH=./dat
 Run the API and worker in separate terminals:
 
 ```bash
-bun run dev
-bun run dev:worker
+npm run dev
+npm run dev:worker
 ```
 
 ## Production
@@ -29,12 +29,11 @@ bun run dev:worker
 Configure all required values from `.env.example`, then run:
 
 ```bash
-bun install --frozen-lockfile
-bun run build
-bun run start
-bun run start:worker
+npm ci
+npm run build
+npm run start
 ```
 
-The API and worker are separate long-running processes. Both must use the same production environment and PostgreSQL database.
+The production entry point supervises both the Vendure API and worker. On Hostinger, use Node.js 22, run `npm run build`, and start `apps/api/dist/production.js`. Keep the SQLite database and uploaded files outside the deployment directory using the paths documented in `.env.example`, so a redeployment cannot replace live data.
 
 Frontend code and public storefront assets belong in the separate frontend repository.
