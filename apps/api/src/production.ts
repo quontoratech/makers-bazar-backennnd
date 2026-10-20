@@ -17,9 +17,12 @@ async function prepareSqliteDatabase() {
 
     const databasePath = path.resolve(process.env.DB_PATH);
     await fs.mkdir(path.dirname(databasePath), { recursive: true });
-    if (await pathExists(databasePath)) return;
-
     const seedPath = process.env.DB_SEED_PATH && path.resolve(process.env.DB_SEED_PATH);
+    if (await pathExists(databasePath)) {
+        if (seedPath) await fs.rm(seedPath, { force: true });
+        return;
+    }
+
     if (!seedPath || !(await pathExists(seedPath))) return;
 
     const temporaryPath = `${databasePath}.import-${process.pid}`;
@@ -52,8 +55,11 @@ async function prepareAssetLibrary() {
 
     const seed = process.env.ASSET_SEED_DIR && path.resolve(process.env.ASSET_SEED_DIR);
     if (!seed || !(await pathExists(seed))) return;
-    const currentFiles = await fs.readdir(target);
-    if (currentFiles.length === 0) await fs.cp(seed, target, { recursive: true });
+    const marker = path.join(target, '.seed-complete-v1');
+    if (!(await pathExists(marker))) {
+        await fs.cp(seed, target, { recursive: true, force: true });
+        await fs.writeFile(marker, new Date().toISOString(), { mode: 0o600 });
+    }
     await fs.rm(seed, { recursive: true, force: true });
 }
 
