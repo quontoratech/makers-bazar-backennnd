@@ -4,6 +4,7 @@ import { promises as fs } from 'node:fs';
 import { createServer, request as createProxyRequest, type ServerResponse } from 'node:http';
 import { connect as connectSocket } from 'node:net';
 import path from 'node:path';
+import type { Readable } from 'node:stream';
 
 async function pathExists(filePath: string) {
     return fs.access(filePath).then(() => true, () => false);
@@ -75,6 +76,31 @@ async function prepareRuntimeData() {
     await prepareAssetLibrary();
 }
 
+function writeRuntimeLog(level: 'INFO' | 'WARN' | 'ERROR', message: string) {
+    process.stdout.write(`${JSON.stringify({
+        timestamp: new Date().toISOString(),
+        level,
+        message,
+    })}\n`);
+}
+
+function forwardChildOutput(stream: Readable | null, label: string, level: 'INFO' | 'ERROR') {
+    if (!stream) return;
+    let buffered = '';
+    stream.setEncoding('utf8');
+    stream.on('data', chunk => {
+        buffered += chunk;
+        const lines = buffered.split(/\r?\n/);
+        buffered = lines.pop() ?? '';
+        for (const line of lines) {
+            if (line.trim()) writeRuntimeLog(level, `[${label}] ${line}`);
+        }
+    });
+    stream.once('end', () => {
+        if (buffered.trim()) writeRuntimeLog(level, `[${label}] ${buffered}`);
+    });
+}
+
 async function startProduction() {
     const port = Number(process.env.PORT ?? process.env.API_PORT ?? 3000);
     const internalPort = Number(process.env.INTERNAL_API_PORT ?? port + 1);
@@ -125,15 +151,20 @@ async function startProduction() {
         ...process.env,
         PORT: String(internalPort),
         API_PORT: String(internalPort),
+        NODE_OPTIONS: '',
     };
     const api = spawn(process.execPath, [path.join(__dirname, 'index.js')], {
         env: childEnvironment,
-        stdio: 'inherit',
+        stdio: ['ignore', 'pipe', 'pipe'],
     });
     const worker = spawn(process.execPath, [path.join(__dirname, 'worker.js')], {
         env: childEnvironment,
-        stdio: 'inherit',
+        stdio: ['ignore', 'pipe', 'pipe'],
     });
+    forwardChildOutput(api.stdout, 'API', 'INFO');
+    forwardChildOutput(api.stderr, 'API', 'ERROR');
+    forwardChildOutput(worker.stdout, 'WORKER', 'INFO');
+    forwardChildOutput(worker.stderr, 'WORKER', 'ERROR');
     let shuttingDown = false;
     const stopChildren = (signal: NodeJS.Signals) => {
         if (shuttingDown) return;
@@ -146,15 +177,15 @@ async function startProduction() {
     process.once('SIGTERM', () => stopChildren('SIGTERM'));
     const handleUnexpectedExit = (name: string, code: number | null, signal: NodeJS.Signals | null) => {
         if (shuttingDown) return;
-        console.error(`${name} stopped unexpectedly (${signal ?? code ?? 'unknown'})`);
+        writeRuntimeLog('ERROR', `${name} stopped unexpectedly (${signal ?? code ?? 'unknown'})`);
         process.exit(1);
     };
     api.once('exit', (code, signal) => handleUnexpectedExit('API', code, signal));
     worker.once('exit', (code, signal) => handleUnexpectedExit('Background worker', code, signal));
-    console.info(`Public proxy is listening on ${port}; API and worker use internal port ${internalPort}`);
+    writeRuntimeLog('INFO', `Public proxy is listening on ${port}; API and worker use internal port ${internalPort}`);
 }
 
 startProduction().catch(error => {
-    console.error(error instanceof Error ? error.stack ?? error.message : String(error));
+    writeRuntimeLog('ERROR', error instanceof Error ? error.stack ?? error.message : String(error));
     process.exit(1);
 });
