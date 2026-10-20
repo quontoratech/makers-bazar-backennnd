@@ -1,9 +1,7 @@
-import 'reflect-metadata';
-
-import { bootstrap, Logger } from '@vendure/core';
 import { spawn } from 'node:child_process';
 import { createDecipheriv } from 'node:crypto';
 import { promises as fs } from 'node:fs';
+import { createServer } from 'node:http';
 import path from 'node:path';
 
 async function pathExists(filePath: string) {
@@ -71,8 +69,26 @@ async function prepareRuntimeData() {
 }
 
 async function startProduction() {
+    const port = Number(process.env.PORT ?? process.env.API_PORT ?? 3000);
+    const warmupServer = createServer((_request, response) => {
+        response.writeHead(503, {
+            'content-type': 'application/json; charset=utf-8',
+            'retry-after': '5',
+        });
+        response.end(JSON.stringify({ status: 'starting' }));
+    });
+    await new Promise<void>((resolve, reject) => {
+        warmupServer.once('error', reject);
+        warmupServer.listen(port, resolve);
+    });
+
     await prepareRuntimeData();
+    await import('reflect-metadata');
+    const { bootstrap, Logger } = await import('@vendure/core');
     const { config } = await import('./config/vendure-config.js');
+    await new Promise<void>((resolve, reject) => {
+        warmupServer.close(error => error ? reject(error) : resolve());
+    });
     await bootstrap(config);
 
     const worker = spawn(process.execPath, [path.join(__dirname, 'worker.js')], {
@@ -95,6 +111,6 @@ async function startProduction() {
 }
 
 startProduction().catch(error => {
-    Logger.error(error instanceof Error ? error.stack ?? error.message : String(error), 'ProductionBootstrap');
+    console.error(error instanceof Error ? error.stack ?? error.message : String(error));
     process.exit(1);
 });
