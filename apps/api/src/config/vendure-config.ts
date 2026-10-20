@@ -23,10 +23,12 @@ const webOrigins = (process.env.WEB_ORIGIN ?? 'http://localhost:3001')
     .filter(Boolean);
 const webOrigin = webOrigins[0] ?? 'http://localhost:3001';
 const apiPort = Number(process.env.PORT ?? process.env.API_PORT ?? 3000);
+const apiHostname = process.env.API_HOSTNAME;
 const apiPublicUrl = (process.env.API_PUBLIC_URL ?? `http://localhost:${apiPort}`).replace(/\/+$/, '');
 
 export const config: VendureConfig = {
     apiOptions: {
+        hostname: apiHostname,
         port: apiPort,
         adminApiPath: 'admin-api',
         shopApiPath: 'shop-api',

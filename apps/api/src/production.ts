@@ -104,6 +104,7 @@ function forwardChildOutput(stream: Readable | null, label: string, level: 'INFO
 async function startProduction() {
     const port = Number(process.env.PORT ?? process.env.API_PORT ?? 3000);
     const internalPort = Number(process.env.INTERNAL_API_PORT ?? port + 1);
+    let lastProxyErrorAt = 0;
     const sendStarting = (response: ServerResponse) => {
         if (response.headersSent) return response.end();
         response.writeHead(503, {
@@ -123,7 +124,14 @@ async function startProduction() {
             response.writeHead(proxyResponse.statusCode ?? 502, proxyResponse.statusMessage, proxyResponse.headers);
             proxyResponse.pipe(response);
         });
-        proxyRequest.once('error', () => sendStarting(response));
+        proxyRequest.once('error', (error: NodeJS.ErrnoException) => {
+            const now = Date.now();
+            if (now - lastProxyErrorAt >= 30_000) {
+                lastProxyErrorAt = now;
+                writeRuntimeLog('WARN', `Internal API proxy connection failed (${error.code ?? 'unknown'})`);
+            }
+            sendStarting(response);
+        });
         request.once('aborted', () => proxyRequest.destroy());
         request.pipe(proxyRequest);
     });
@@ -151,6 +159,7 @@ async function startProduction() {
         ...process.env,
         PORT: String(internalPort),
         API_PORT: String(internalPort),
+        API_HOSTNAME: '127.0.0.1',
         NODE_OPTIONS: '',
     };
     const api = spawn(process.execPath, [path.join(__dirname, 'index.js')], {
