@@ -1,8 +1,7 @@
 import { spawn } from 'node:child_process';
 import { createDecipheriv } from 'node:crypto';
 import { promises as fs } from 'node:fs';
-import { createServer, request as createProxyRequest, type ServerResponse } from 'node:http';
-import { connect as connectSocket } from 'node:net';
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import path from 'node:path';
 import type { Readable } from 'node:stream';
 
@@ -103,8 +102,6 @@ function forwardChildOutput(stream: Readable | null, label: string, level: 'INFO
 
 async function startProduction() {
     const port = Number(process.env.PORT ?? process.env.API_PORT ?? 3000);
-    const internalPort = Number(process.env.INTERNAL_API_PORT ?? port + 1);
-    let lastProxyErrorAt = 0;
     const sendStarting = (response: ServerResponse) => {
         if (response.headersSent) return response.end();
         response.writeHead(503, {
@@ -113,85 +110,57 @@ async function startProduction() {
         });
         response.end(JSON.stringify({ status: 'starting' }));
     };
-    const publicServer = createServer((request, response) => {
-        const proxyRequest = createProxyRequest({
-            host: '127.0.0.1',
-            port: internalPort,
-            path: request.url,
-            method: request.method,
-            headers: request.headers,
-        }, proxyResponse => {
-            response.writeHead(proxyResponse.statusCode ?? 502, proxyResponse.statusMessage, proxyResponse.headers);
-            proxyResponse.pipe(response);
-        });
-        proxyRequest.once('error', (error: NodeJS.ErrnoException) => {
-            const now = Date.now();
-            if (now - lastProxyErrorAt >= 30_000) {
-                lastProxyErrorAt = now;
-                writeRuntimeLog('WARN', `Internal API proxy connection failed (${error.code ?? 'unknown'})`);
-            }
-            sendStarting(response);
-        });
-        request.once('aborted', () => proxyRequest.destroy());
-        request.pipe(proxyRequest);
-    });
-    publicServer.on('upgrade', (request, socket, head) => {
-        const upstream = connectSocket(internalPort, '127.0.0.1');
-        upstream.once('connect', () => {
-            upstream.write(`${request.method ?? 'GET'} ${request.url ?? '/'} HTTP/${request.httpVersion}\r\n`);
-            for (let index = 0; index < request.rawHeaders.length; index += 2) {
-                upstream.write(`${request.rawHeaders[index]}: ${request.rawHeaders[index + 1]}\r\n`);
-            }
-            upstream.write('\r\n');
-            if (head.length) upstream.write(head);
-            socket.pipe(upstream).pipe(socket);
-        });
-        upstream.once('error', () => socket.destroy());
-        socket.once('error', () => upstream.destroy());
-    });
+    const warmupHandler = (_request: IncomingMessage, response: ServerResponse) => sendStarting(response);
+    const publicServer = createServer(warmupHandler);
     await new Promise<void>((resolve, reject) => {
         publicServer.once('error', reject);
         publicServer.listen(port, resolve);
     });
 
     await prepareRuntimeData();
-    const childEnvironment = {
-        ...process.env,
-        PORT: String(internalPort),
-        API_PORT: String(internalPort),
-        API_HOSTNAME: '127.0.0.1',
-        NODE_OPTIONS: '',
-    };
-    const api = spawn(process.execPath, [path.join(__dirname, 'index.js')], {
-        env: childEnvironment,
-        stdio: ['ignore', 'pipe', 'pipe'],
+    await import('reflect-metadata');
+    const { bootstrap } = await import('@vendure/core');
+    const { config } = await import('./config/vendure-config.js');
+    await bootstrap(config, {
+        onBeforeAppListen: app => {
+            const adapter = app.getHttpAdapter() as unknown as {
+                getInstance: () => typeof warmupHandler;
+                listen: (port: number, ...args: unknown[]) => typeof publicServer;
+                setHttpServer: (server: typeof publicServer) => void;
+            };
+            const applicationHandler = adapter.getInstance();
+            adapter.setHttpServer(publicServer);
+            (app as unknown as { httpServer: typeof publicServer }).httpServer = publicServer;
+            adapter.listen = (_port: number, ...args: unknown[]) => {
+                publicServer.removeListener('request', warmupHandler);
+                publicServer.on('request', applicationHandler);
+                const callback = [...args].reverse().find((argument: unknown) => typeof argument === 'function') as (() => void) | undefined;
+                callback?.();
+                return publicServer;
+            };
+        },
     });
+
     const worker = spawn(process.execPath, [path.join(__dirname, 'worker.js')], {
-        env: childEnvironment,
+        env: { ...process.env, NODE_OPTIONS: '' },
         stdio: ['ignore', 'pipe', 'pipe'],
     });
-    forwardChildOutput(api.stdout, 'API', 'INFO');
-    forwardChildOutput(api.stderr, 'API', 'ERROR');
     forwardChildOutput(worker.stdout, 'WORKER', 'INFO');
     forwardChildOutput(worker.stderr, 'WORKER', 'ERROR');
     let shuttingDown = false;
-    const stopChildren = (signal: NodeJS.Signals) => {
+    const stopWorker = (signal: NodeJS.Signals) => {
         if (shuttingDown) return;
         shuttingDown = true;
-        publicServer.close();
-        if (!api.killed) api.kill(signal);
         if (!worker.killed) worker.kill(signal);
     };
-    process.once('SIGINT', () => stopChildren('SIGINT'));
-    process.once('SIGTERM', () => stopChildren('SIGTERM'));
-    const handleUnexpectedExit = (name: string, code: number | null, signal: NodeJS.Signals | null) => {
+    process.once('SIGINT', () => stopWorker('SIGINT'));
+    process.once('SIGTERM', () => stopWorker('SIGTERM'));
+    worker.once('exit', (code, signal) => {
         if (shuttingDown) return;
-        writeRuntimeLog('ERROR', `${name} stopped unexpectedly (${signal ?? code ?? 'unknown'})`);
+        writeRuntimeLog('ERROR', `Background worker stopped unexpectedly (${signal ?? code ?? 'unknown'})`);
         process.exit(1);
-    };
-    api.once('exit', (code, signal) => handleUnexpectedExit('API', code, signal));
-    worker.once('exit', (code, signal) => handleUnexpectedExit('Background worker', code, signal));
-    writeRuntimeLog('INFO', `Public proxy is listening on ${port}; API and worker use internal port ${internalPort}`);
+    });
+    writeRuntimeLog('INFO', `Vendure API is attached to the existing public listener on ${port}`);
 }
 
 startProduction().catch(error => {
