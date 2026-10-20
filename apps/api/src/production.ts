@@ -1,7 +1,8 @@
 import { spawn } from 'node:child_process';
 import { createDecipheriv } from 'node:crypto';
 import { promises as fs } from 'node:fs';
-import { createServer } from 'node:http';
+import { createServer, request as createProxyRequest, type ServerResponse } from 'node:http';
+import { connect as connectSocket } from 'node:net';
 import path from 'node:path';
 
 async function pathExists(filePath: string) {
@@ -76,44 +77,81 @@ async function prepareRuntimeData() {
 
 async function startProduction() {
     const port = Number(process.env.PORT ?? process.env.API_PORT ?? 3000);
-    const warmupServer = createServer((_request, response) => {
+    const internalPort = Number(process.env.INTERNAL_API_PORT ?? port + 1);
+    const sendStarting = (response: ServerResponse) => {
+        if (response.headersSent) return response.end();
         response.writeHead(503, {
             'content-type': 'application/json; charset=utf-8',
             'retry-after': '5',
         });
         response.end(JSON.stringify({ status: 'starting' }));
+    };
+    const publicServer = createServer((request, response) => {
+        const proxyRequest = createProxyRequest({
+            host: '127.0.0.1',
+            port: internalPort,
+            path: request.url,
+            method: request.method,
+            headers: request.headers,
+        }, proxyResponse => {
+            response.writeHead(proxyResponse.statusCode ?? 502, proxyResponse.statusMessage, proxyResponse.headers);
+            proxyResponse.pipe(response);
+        });
+        proxyRequest.once('error', () => sendStarting(response));
+        request.once('aborted', () => proxyRequest.destroy());
+        request.pipe(proxyRequest);
+    });
+    publicServer.on('upgrade', (request, socket, head) => {
+        const upstream = connectSocket(internalPort, '127.0.0.1');
+        upstream.once('connect', () => {
+            upstream.write(`${request.method ?? 'GET'} ${request.url ?? '/'} HTTP/${request.httpVersion}\r\n`);
+            for (let index = 0; index < request.rawHeaders.length; index += 2) {
+                upstream.write(`${request.rawHeaders[index]}: ${request.rawHeaders[index + 1]}\r\n`);
+            }
+            upstream.write('\r\n');
+            if (head.length) upstream.write(head);
+            socket.pipe(upstream).pipe(socket);
+        });
+        upstream.once('error', () => socket.destroy());
+        socket.once('error', () => upstream.destroy());
     });
     await new Promise<void>((resolve, reject) => {
-        warmupServer.once('error', reject);
-        warmupServer.listen(port, resolve);
+        publicServer.once('error', reject);
+        publicServer.listen(port, resolve);
     });
 
     await prepareRuntimeData();
-    await import('reflect-metadata');
-    const { bootstrap, Logger } = await import('@vendure/core');
-    const { config } = await import('./config/vendure-config.js');
-    await new Promise<void>((resolve, reject) => {
-        warmupServer.close(error => error ? reject(error) : resolve());
+    const childEnvironment = {
+        ...process.env,
+        PORT: String(internalPort),
+        API_PORT: String(internalPort),
+    };
+    const api = spawn(process.execPath, [path.join(__dirname, 'index.js')], {
+        env: childEnvironment,
+        stdio: 'inherit',
     });
-    await bootstrap(config);
-
     const worker = spawn(process.execPath, [path.join(__dirname, 'worker.js')], {
-        env: process.env,
+        env: childEnvironment,
         stdio: 'inherit',
     });
     let shuttingDown = false;
-    const stopWorker = (signal: NodeJS.Signals) => {
+    const stopChildren = (signal: NodeJS.Signals) => {
+        if (shuttingDown) return;
         shuttingDown = true;
+        publicServer.close();
+        if (!api.killed) api.kill(signal);
         if (!worker.killed) worker.kill(signal);
     };
-    process.once('SIGINT', () => stopWorker('SIGINT'));
-    process.once('SIGTERM', () => stopWorker('SIGTERM'));
-    worker.once('exit', (code, signal) => {
+    process.once('SIGINT', () => stopChildren('SIGINT'));
+    process.once('SIGTERM', () => stopChildren('SIGTERM'));
+    const handleUnexpectedExit = (name: string, code: number | null, signal: NodeJS.Signals | null) => {
         if (shuttingDown) return;
-        Logger.error(`Background worker stopped unexpectedly (${signal ?? code ?? 'unknown'})`, 'ProductionBootstrap');
+        console.error(`${name} stopped unexpectedly (${signal ?? code ?? 'unknown'})`);
         process.exit(1);
-    });
-    Logger.info('API and supervised background worker are running', 'ProductionBootstrap');
+    };
+    api.once('exit', (code, signal) => handleUnexpectedExit('API', code, signal));
+    worker.once('exit', (code, signal) => handleUnexpectedExit('Background worker', code, signal));
+    console.info(`Public proxy is listening on ${port}; API and worker use internal port ${internalPort}`);
 }
 
 startProduction().catch(error => {
