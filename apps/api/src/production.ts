@@ -122,7 +122,7 @@ async function startProduction() {
     const { bootstrap } = await import('@vendure/core');
     const { config } = await import('./config/vendure-config.js');
     await bootstrap(config, {
-        onBeforeAppListen: app => {
+        onBeforeAppListen: async app => {
             const adapter = app.getHttpAdapter() as unknown as {
                 getInstance: () => typeof warmupHandler;
                 listen: (port: number, ...args: unknown[]) => typeof publicServer;
@@ -131,9 +131,11 @@ async function startProduction() {
             const applicationHandler = adapter.getInstance();
             adapter.setHttpServer(publicServer);
             (app as unknown as { httpServer: typeof publicServer }).httpServer = publicServer;
+            publicServer.removeListener('request', warmupHandler);
+            publicServer.on('request', applicationHandler);
+            const { IoAdapter } = await import('@nestjs/platform-socket.io');
+            app.useWebSocketAdapter(new IoAdapter(publicServer));
             adapter.listen = (_port: number, ...args: unknown[]) => {
-                publicServer.removeListener('request', warmupHandler);
-                publicServer.on('request', applicationHandler);
                 const callback = [...args].reverse().find((argument: unknown) => typeof argument === 'function') as (() => void) | undefined;
                 callback?.();
                 return publicServer;
