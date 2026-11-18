@@ -10,6 +10,12 @@ coverage
 !.env.example
 .DS_Store
 
+# cPanel runtime and preserved deployment artifacts
+/tmp/
+/app.js
+/backend.zip
+/package-lock.json.*.bak
+
 # Runtime data and private customer/vendor files
 apps/api/assets
 apps/api/data
