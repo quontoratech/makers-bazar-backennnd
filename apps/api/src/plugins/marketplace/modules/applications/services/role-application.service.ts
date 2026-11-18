@@ -19,10 +19,8 @@ import { In } from 'typeorm';
 
 import {
     affiliatePermission,
-    bookingPermission,
     financePermission,
     promotionPermission,
-    supportPermission,
 } from '../../../permissions';
 import { MarketplaceList, MarketplaceListOptions, normalizeListOptions } from '../../../shared/pagination';
 import { VendorProvisioningService } from '../../vendor/services/vendor-provisioning.service';
@@ -65,6 +63,7 @@ export class RoleApplicationService {
     ) {}
 
     async submit(ctx: RequestContext, input: SubmitRoleApplicationInput): Promise<RoleApplication> {
+        if (!['VENDOR', 'INFLUENCER'].includes(input.role as string)) throw new Error('Choose a valid application role');
         if (input.role === 'VENDOR') throw new Error('Use the verified vendor onboarding wizard to apply');
         const repository = this.connection.getRepository(ctx, RoleApplication);
         const emailAddress = input.emailAddress.trim().toLowerCase();
@@ -342,7 +341,7 @@ export class RoleApplicationService {
             provisionedUserId = vendor.ownerUserId;
             await this.onboarding.approve(ctx, application, vendor);
         } else {
-            const role = await this.getOrCreateAccountRole(ctx, application.role);
+            const role = await this.getOrCreateInfluencerRole(ctx);
             const administrator = await this.administratorService.create(ctx, {
                 firstName: application.firstName,
                 lastName: application.lastName,
@@ -443,21 +442,16 @@ export class RoleApplicationService {
         return this.connection.getRepository(ctx, RoleApplication).findOne({ where: { id } });
     }
 
-    private async getOrCreateAccountRole(ctx: RequestContext, role: Exclude<MarketplaceApplicationRole, 'VENDOR'>) {
-        const code = role === 'INFLUENCER' ? 'marketplace-influencer' : 'marketplace-organizer';
+    private async getOrCreateInfluencerRole(ctx: RequestContext) {
+        const code = 'marketplace-influencer';
         const existing = await this.connection.getRepository(ctx, Role).findOne({ where: { code } });
         if (existing) return existing;
         const channel = await this.channelService.getDefaultChannel(ctx);
-        const permissions = role === 'INFLUENCER'
-            ? [affiliatePermission.Read, promotionPermission.Read, financePermission.Read]
-            : [bookingPermission.Create, bookingPermission.Read, bookingPermission.Update, supportPermission.Read, promotionPermission.Read, financePermission.Read];
         return this.roleService.create(ctx, {
             code,
-            description: role === 'INFLUENCER'
-                ? 'Approved influencer marketplace account'
-                : 'Approved event and workshop organizer marketplace account',
+            description: 'Approved influencer marketplace account',
             channelIds: [channel.id],
-            permissions,
+            permissions: [affiliatePermission.Read, promotionPermission.Read, financePermission.Read],
         });
     }
 

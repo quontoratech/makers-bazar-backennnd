@@ -29,7 +29,7 @@
     "verify:promotion-payments": "ts-node -r dotenv/config ./src/scripts/verify-promotion-payments.ts"
   },
   "dependencies": {
-    "@marketplace/contracts": "0.1.0",
+    "@marketplace/contracts": "file:../../packages/contracts",
     "@nestjs/common": "^11.0.12",
     "@nestjs/graphql": "~13.1.0",
     "@nestjs/platform-socket.io": "11.1.28",

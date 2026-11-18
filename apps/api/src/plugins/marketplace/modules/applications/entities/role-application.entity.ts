@@ -1,7 +1,7 @@
 import { DeepPartial, VendureEntity } from '@vendure/core';
 import { Column, Entity, Index } from 'typeorm';
 
-export type MarketplaceApplicationRole = 'VENDOR' | 'INFLUENCER' | 'ORGANIZER';
+export type MarketplaceApplicationRole = 'VENDOR' | 'INFLUENCER';
 export type MarketplaceApplicationStatus =
     | 'PENDING'
     | 'UNDER_REVIEW'

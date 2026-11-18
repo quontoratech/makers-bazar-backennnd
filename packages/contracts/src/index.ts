@@ -2,11 +2,10 @@ export type MarketplaceRole =
     | 'customer'
     | 'vendor'
     | 'influencer'
-    | 'organizer'
     | 'admin'
     | 'super-admin';
 
-export type ApplicationRole = 'VENDOR' | 'INFLUENCER' | 'ORGANIZER';
+export type ApplicationRole = 'VENDOR' | 'INFLUENCER';
 
 export type ApplicationStatus =
     | 'PENDING'
