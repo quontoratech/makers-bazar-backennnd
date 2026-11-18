@@ -2,14 +2,14 @@
 set -euo pipefail
 
 APP_ROOT="${HOME}/apps/makers-bazar/backend"
-NODE_ENV_FILE="${HOME}/nodevenv/apps/makers-bazar/backend/22/bin/activate"
+NODE_BIN_DIR="${CPANEL_NODE_BIN:-/opt/alt/alt-nodejs22/root/usr/bin}"
 
 cd "${APP_ROOT}"
 git pull --ff-only origin main
 
-if [[ -f "${NODE_ENV_FILE}" ]]; then
-  # Use cPanel's selected Node.js binaries without sourcing CloudLinux's interactive-only activation script.
-  export PATH="$(dirname "${NODE_ENV_FILE}"):${PATH}"
+if [[ -x "${NODE_BIN_DIR}/node" && -x "${NODE_BIN_DIR}/npm" ]]; then
+  # Bypass CloudLinux's interactive wrapper while retaining the Node.js 22 selected in cPanel.
+  export PATH="${NODE_BIN_DIR}:${PATH}"
 fi
 
 npm install
