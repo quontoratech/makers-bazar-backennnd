@@ -8,10 +8,8 @@ cd "${APP_ROOT}"
 git pull --ff-only origin main
 
 if [[ -f "${NODE_ENV_FILE}" ]]; then
-  # CloudLinux exposes the Node.js version selected in cPanel through this venv.
-  set +u
-  source "${NODE_ENV_FILE}"
-  set -u
+  # Use cPanel's selected Node.js binaries without sourcing CloudLinux's interactive-only activation script.
+  export PATH="$(dirname "${NODE_ENV_FILE}"):${PATH}"
 fi
 
 npm install
